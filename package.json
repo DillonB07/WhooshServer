@@ -16,6 +16,9 @@
     "prettier": "^2.8.7"
   },
   "devDependencies": {
-    "@types/xml2js": "^0.4.11"
+    "@types/express": "^4.17.17",
+    "@types/xml2js": "^0.4.11",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
   }
 }
