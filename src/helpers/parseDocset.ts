@@ -7,6 +7,11 @@ type docsetItem = {
 	homePage: string;
 };
 
+// type remoteDocsetItem = {
+//     name: string;
+//     latestVersion: string
+// }
+
 function getDashIndexFilePath(infoPlist: string): string | undefined {
 	const plist = new DOMParser().parseFromString(infoPlist, "application/xml");
 	const dict = plist.getElementsByTagName("dict")[0];
@@ -21,7 +26,7 @@ function getDashIndexFilePath(infoPlist: string): string | undefined {
 	return undefined;
 }
 
-async function getAllDocsets(): Promise<docsetItem[] | undefined> {
+export async function getAllDocsets(): Promise<docsetItem[] | undefined> {
 	// Get all docsets in the docsets folder
 	const docsets = await fs.promises.readdir("./docsets");
 
@@ -44,3 +49,5 @@ async function getAllDocsets(): Promise<docsetItem[] | undefined> {
 	}
 	return docsetList;
 }
+
+// export async function getRemoteDocsets(): Promise<remoteDocsetItem[] | undefined>
