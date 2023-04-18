@@ -1,6 +1,6 @@
 
 hidden = [".config", "package-lock.json"]
-run = "node ."
+run = "yarn start"
 
 [[hints]]
 regex = "Error \\[ERR_REQUIRE_ESM\\]"
@@ -62,7 +62,7 @@ support = true
       cwd = "."
       environment = []
       pauseForSourceMap = false
-      program = "./index.js"
+      program = "./src/app.ts"
       request = "launch"
       sourceMaps = true
       stopOnEntry = false
