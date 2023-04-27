@@ -1,0 +1,9 @@
+.config
+.build
+.cache
+.upm
+.tmp
+.git
+docsets
+feeds
+node_modules

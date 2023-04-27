@@ -1,8 +1,11 @@
-import https from "https";
 import fs from "fs";
 import path from "path";
+import tar from 'tar'
 import { parseStringPromise } from "xml2js";
-import type {docsetItemType} from './parseDocset'
+import type { docsetItemType } from './parseDocset'
+import stream from 'stream'
+
+const DOCS_DIR = path.join(__dirname, "../../docsets/");
 
 export type docsetType = {
     success: boolean;
@@ -35,16 +38,22 @@ async function downloadFile(
     }
     return new Promise<string>((resolve, reject) => {
         const file = fs.createWriteStream(docsetFilepath);
-        https
-            .get(url, (response) => {
-                response.pipe(file);
-                file.on("finish", () => {
+        fetch(url).then(r => r.arrayBuffer()).then(response => {
+            if (response) {
+                const s = new stream.PassThrough();
+                s.end(Buffer.from(response));
+                s.pipe(file);
+                s.on("finish", () => {
                     file.close();
-                    console.log(`Downloaded ${docsetFilename}`);
-                    resolve(docsetFilepath);
+                    resolve(docsetFilename);
+                    console.log('Downloaded')
                 });
-            })
-            .on("error", (err) => {
+            } else {
+                fs.unlink(docsetFilepath, () => { });
+                console.error(`Error downloading ${docsetFilepath}`)
+            }
+        })
+            .catch((err) => {
                 fs.unlink(docsetFilepath, () => { });
                 console.error(`Error downloading ${docsetFilename}: ${err}`);
                 reject(err);
@@ -55,18 +64,26 @@ async function downloadFile(
 export async function downloadDocset(xmlFilePath: string): Promise<docsetType> {
     // Parse the XML file
     const xml = await fs.promises.readFile(xmlFilePath);
+    console.log('XML file read successfully');
     try {
         const result = await parseStringPromise(xml);
         const root = result.entry;
-        const docsetFile = await downloadFile(root.url[1], "./docsets");
+        const docsetFile = await downloadFile(root.url[1], DOCS_DIR);
         if (docsetFile) {
-            // File downloaded successfully
+            // File downloaded successfully - extract docset
+            const extractionDir = DOCS_DIR;
+            if (!fs.existsSync(extractionDir)) {
+                fs.mkdirSync(extractionDir);
+            }
+            await tar.extract({ file: path.join(extractionDir, docsetFile), cwd: extractionDir });
+            await fs.promises.unlink(path.join(extractionDir, docsetFile));
             return {
                 success: true,
-                message: "Docset successfully downloaded",
-                docsetPath: docsetFile,
+                message: "Docset successfully downloaded and extracted",
+                docsetPath: extractionDir,
             };
         } else {
+            console.log('Oops, something went wrong');
             // File not downloaded
             return {
                 success: false,
@@ -76,6 +93,7 @@ export async function downloadDocset(xmlFilePath: string): Promise<docsetType> {
         }
     } catch (err) {
         // Error parsing XML or downloading file.
+        console.error(err)
         return { success: false, message: "Invalid XML", docsetPath: undefined };
     }
 }
@@ -84,9 +102,12 @@ export async function downloadDocset(xmlFilePath: string): Promise<docsetType> {
 export async function getDocsetInfo(xmlFilePath: string): Promise<docsetItemType> {
     const file = fs.readFileSync(xmlFilePath)
     const result = await parseStringPromise(file)
-    
+
     const version = result.entry?.version?.toString()
     const name = path.basename(xmlFilePath, '.xml')
-    return {name, version}
+
+    
+    
+    return { name, version }
 }
 
