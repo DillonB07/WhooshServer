@@ -9,12 +9,21 @@ import { downloadDocset } from "./helpers/xmlUtils";
 import path from "path";
 import fs from "fs";
 import cheerio from "cheerio";
+import {rateLimit} from 'express-rate-limit'
 
 const app = express();
 const XML_DIR = path.join(__dirname, "..", "feeds");
 const DOCS_DIR = path.join(__dirname, "..", "docsets");
 
 app.set("view engine", "ejs");
+
+var limiter = rateLimit({
+  windowMs: 1*60*1000, // 1 minute
+  max: 10
+});
+
+// apply rate limiter to all requests
+app.use(limiter);
 
 app.get("/docs/:libname", async (req: Request, res: Response) => {
     const libname = req.params["libname"];
