@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import type { Request, Response } from "express";
 import {
     getAllLocalDocsets,
@@ -14,16 +15,21 @@ import {rateLimit} from 'express-rate-limit'
 const app = express();
 const XML_DIR = path.join(__dirname, "..", "feeds");
 const DOCS_DIR = path.join(__dirname, "..", "docsets");
+const corsOptions = {
+    // origin: ['https://extension-whoosh.whooshdocs.repl.co', 'https://9ebb28cc-effb-4399-a6ff-94f37e41d1d3.id.repl.co', 'https://whooshdocs.repl.co', 'https://whooshdocs.whooshdocs.repl.co', 'https://whoosh.dillonb07.studio', '*']
+}
 
 app.set("view engine", "ejs");
 
 var limiter = rateLimit({
-  windowMs: 1*60*1000, // 1 minute
+  windowMs: 1*30*1000, // 30 seconds
   max: 10
 });
 
 // apply rate limiter to all requests
 app.use(limiter);
+// Apply CORS rules
+app.use(cors(corsOptions));
 
 app.get("/docs/:libname", async (req: Request, res: Response) => {
     const libname = req.params["libname"];
@@ -35,7 +41,7 @@ app.get("/docs/:libname", async (req: Request, res: Response) => {
     const libnameEncoded = encodeURIComponent(libname.toLowerCase());
     const docsets = fs.readdirSync(DOCS_DIR);
 
-    const docsetFileName = docsets.find((docset) => {
+    let docsetFileName = docsets.find((docset) => {
         const docsetLower = docset.toLowerCase();
         return (
             docsetLower.includes(libnameEncoded) && docsetLower.endsWith(".docset")
@@ -51,9 +57,13 @@ app.get("/docs/:libname", async (req: Request, res: Response) => {
         if (xmlFileName) {
             console.log("Downloading");
             await downloadDocset(path.join(XML_DIR, xmlFileName));
-            return res.status(200).send("Docset downloaded");
-        }
+            docsetFileName = xmlFileName.split('.')[0]
+            if (!docsetFileName) {
+                return res.status(500).send('Internal Server Error')
+            }
+        } else {   
         return res.status(404).send("Could not find docset");
+        }
     }
     const infoPlist = await fs.promises.readFile(
         path.join(DOCS_DIR, docsetFileName, "Contents/Info.plist"),
@@ -78,6 +88,33 @@ app.get("/docs/:libname", async (req: Request, res: Response) => {
     // Add base element to support the structure of the project
     const $ = cheerio.load(fileContent);
     $("head").prepend(`<base href="/files${path.dirname(indexPath)}/docs">`);
+    $('head').append(`
+      <script>
+        const parsedHash = new URLSearchParams(window.location.hash.substring(1));
+
+        for (let [key, value] of parsedHash.entries()) {
+          if (key == 'color') {
+            key = '--injected-color';
+          }
+
+          document.body.style.setProperty(key, value);
+        }
+      </script>
+
+      <style>
+        @layer whoosh {
+          body {
+            background-color: inherit !important;
+          }
+
+          *:not(svg *, .gatsby-highlight .token, .dash-ignore-dark-mode) {
+            color: var(--injected-color) !important;
+          }
+        }
+
+        @layer whoosh;
+      </style>
+    `);
 
     return res.send($.html());
 });

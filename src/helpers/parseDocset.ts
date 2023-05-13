@@ -1,7 +1,7 @@
 import path from "path"
 import fs from "fs";
 import { DOMParser } from "xmldom";
-import {getDocsetInfo} from "./xmlUtils"
+import { getDocsetInfo } from "./xmlUtils"
 
 export type docsetItemType = {
     name: string;
@@ -33,7 +33,7 @@ export function getDocsetVersionFromPlist(infoPlist: string): string | undefined
     const dict = plist.getElementsByTagName('dict')[0]
     const keys = dict?.getElementsByTagName('key');
     if (!keys || keys.length === 0) return;
-    for (let i = 0; i < keys.length; i ++) {
+    for (let i = 0; i < keys.length; i++) {
         if (keys[i]?.textContent == "version") {
             const value = keys[i]?.nextSibling?.textContent;
             return value || undefined
@@ -68,19 +68,19 @@ export async function getAllDocsets(): Promise<docsetItemType[]> {
     const localDocsets = await getAllLocalDocsets()
 
     for (const file of files) {
-      if (file.endsWith('.xml')) {
-          // Parse the XML file
-          const data = await getDocsetInfo(path.join(XML_DIR, file))
-          const item = localDocsets.find((docsetItem) => docsetItem.name === data.name);
-        if (item) {
-            // Item found locally so must be downloaded
-            docsetList.push({...data, downloaded: true})
-        } else {
-        // Item not found locally so must not be downloaded
-        docsetList.push({...data, downloaded: false})
-        }
+        if (file.endsWith('.xml')) {
+            // Parse the XML file
+            const data = await getDocsetInfo(path.join(XML_DIR, file))
+            const item = localDocsets.find((docsetItem) => docsetItem.name === data.name);
+            if (item) {
+                // Item found locally so must be downloaded
+                docsetList.push({ ...data, downloaded: true })
+            } else {
+                // Item not found locally so must not be downloaded
+                docsetList.push({ ...data, downloaded: false })
+            }
 
-      }
+        }
     }
     return docsetList
 }
