@@ -5,12 +5,14 @@ import {
     getAllLocalDocsets,
     getAllDocsets,
     getDashIndexFilePath,
+    injectDocset,
 } from "./helpers/parseDocset";
 import { downloadDocset } from "./helpers/xmlUtils";
 import path from "path";
 import fs from "fs";
 import cheerio from "cheerio";
-import {rateLimit} from 'express-rate-limit'
+// import { rateLimit } from 'express-rate-limit'
+
 
 const app = express();
 const XML_DIR = path.join(__dirname, "..", "feeds");
@@ -21,13 +23,13 @@ const corsOptions = {
 
 app.set("view engine", "ejs");
 
-var limiter = rateLimit({
-  windowMs: 1*30*1000, // 30 seconds
-  max: 10
-});
+// var limiter = rateLimit({
+    // windowMs: 0 * 30 * 1000, // 30 seconds
+    // max: 10
+// });
 
 // apply rate limiter to all requests
-app.use(limiter);
+// app.use(limiter);
 // Apply CORS rules
 app.use(cors(corsOptions));
 
@@ -61,8 +63,8 @@ app.get("/docs/:libname", async (req: Request, res: Response) => {
             if (!docsetFileName) {
                 return res.status(500).send('Internal Server Error')
             }
-        } else {   
-        return res.status(404).send("Could not find docset");
+        } else {
+            return res.status(404).send("Could not find docset");
         }
     }
     const infoPlist = await fs.promises.readFile(
@@ -83,40 +85,9 @@ app.get("/docs/:libname", async (req: Request, res: Response) => {
         "Contents/Resources/Documents",
         docsetPath
     );
-    const fileContent = await fs.promises.readFile(indexPath, "utf-8");
+   const html = await injectDocset(indexPath, req)
 
-    // Add base element to support the structure of the project
-    const $ = cheerio.load(fileContent);
-    $("head").prepend(`<base href="/files${path.dirname(indexPath)}/docs">`);
-    $('head').append(`
-      <script>
-        const parsedHash = new URLSearchParams(window.location.hash.substring(1));
-
-        for (let [key, value] of parsedHash.entries()) {
-          if (key == 'color') {
-            key = '--injected-color';
-          }
-
-          document.body.style.setProperty(key, value);
-        }
-      </script>
-
-      <style>
-        @layer whoosh {
-          body {
-            background-color: inherit !important;
-          }
-
-          *:not(svg *, .gatsby-highlight .token, .dash-ignore-dark-mode) {
-            color: var(--injected-color) !important;
-          }
-        }
-
-        @layer whoosh;
-      </style>
-    `);
-
-    return res.send($.html());
+return res.send(html);
 });
 
 app.get("/files/*", async (req: Request, res: Response) => {
