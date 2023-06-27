@@ -139,6 +139,7 @@ export async function injectDocset(
     @layer whoosh {
       body {
         background-color: inherit !important;
+        background-image: none !important;
       }
 
       *:not(svg *, .gatsby-highlight .token, .dash-ignore-dark-mode) {
